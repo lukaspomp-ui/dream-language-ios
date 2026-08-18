@@ -6,12 +6,10 @@ workflows:
     integrations:
       app_store_connect: codemagic
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: app.lovable.dream-language
       vars:
         XCODE_WORKSPACE: "Dream Language.xcworkspace"
         XCODE_SCHEME: "Dream Language"
+        BUNDLE_ID: "app.lovable.dream-language"
       xcode: latest
       cocoapods: default
     scripts:
@@ -19,7 +17,16 @@ workflows:
         script: |
           cd src
           pod install
-      - name: Set up code signing
+      - name: Initialize keychain
+        script: keychain initialize
+      - name: Fetch signing files (create if missing)
+        script: |
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+      - name: Add certificates to keychain
+        script: keychain add-certificates
+      - name: Apply signing to Xcode project
         script: |
           cd src
           xcode-project use-profiles

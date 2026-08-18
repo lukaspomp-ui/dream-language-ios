@@ -17,6 +17,14 @@ workflows:
         script: |
           cd src
           pod install
+      - name: Strip push and associated-domains entitlements
+        script: |
+          cd src
+          PLIST="Dream Language/Entitlements/Entitlements.plist"
+          /usr/libexec/PlistBuddy -c "Delete :aps-environment" "$PLIST" || true
+          /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.associated-domains" "$PLIST" || true
+          echo "--- entitlements after strip ---"
+          cat "$PLIST"
       - name: Initialize keychain
         script: keychain initialize
       - name: Fetch signing files (generate key + create if missing)

@@ -19,10 +19,12 @@ workflows:
           pod install
       - name: Initialize keychain
         script: keychain initialize
-      - name: Fetch signing files (create if missing)
+      - name: Fetch signing files (generate key + create if missing)
         script: |
+          ssh-keygen -t rsa -b 2048 -m PEM -f /tmp/ios_dist_key -q -N ""
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
+            --certificate-key=@file:/tmp/ios_dist_key \
             --create
       - name: Add certificates to keychain
         script: keychain add-certificates

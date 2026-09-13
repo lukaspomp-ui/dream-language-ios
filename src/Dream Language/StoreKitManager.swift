@@ -68,8 +68,9 @@ final class StoreKitManager {
         switch result {
         case .success(let verification):
             let transaction = try checkVerified(verification)
+            let jws = verification.jwsRepresentation
             await transaction.finish()
-            return transaction.jwsRepresentation
+            return jws
         case .userCancelled:
             throw IAPError.userCancelled
         case .pending:
@@ -85,8 +86,8 @@ final class StoreKitManager {
         try await AppStore.sync()
         var results: [String] = []
         for await entitlement in Transaction.currentEntitlements {
-            if let transaction = try? checkVerified(entitlement) {
-                results.append(transaction.jwsRepresentation)
+            if (try? checkVerified(entitlement)) != nil {
+                results.append(entitlement.jwsRepresentation)
             }
         }
         return results

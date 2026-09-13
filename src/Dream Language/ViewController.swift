@@ -272,5 +272,15 @@ extension ViewController: WKScriptMessageHandler {
         if message.name == "push-token" {
             handleFCMToken()
         }
+        if message.name == "iap-purchase" {
+            if #available(iOS 15.0, *) {
+                handleIAPPurchase(message: message)
+            }
+        }
+        if message.name == "iap-restore" {
+            if #available(iOS 15.0, *) {
+                handleIAPRestore()
+            }
+        }
   }
 }

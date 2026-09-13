@@ -4,8 +4,8 @@ import StoreKit
 /// Product identifiers for Dream Language Premium.
 /// Must match exactly the Product IDs created in App Store Connect.
 enum IAPProduct: String {
-    case monthly = "app.lovable.dream-language.premium.monthly"
-    case yearly = "app.lovable.dream-language.premium.yearly"
+    case monthly = "6802682642"
+    case yearly = "6802682642Y"
 
     init?(cycle: String) {
         switch cycle {

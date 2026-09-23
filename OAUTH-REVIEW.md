@@ -1,6 +1,6 @@
 # Dream Language iOS OAuth repair
 
-Status: implementation prepared; web companion deployment, Apple provisioning, and physical-device validation are release prerequisites. This is not a verified App Review build.
+Status: unsigned iOS simulator compilation and locked web CI build passed. Web deployment, Apple provisioning, signed archive and physical-device login validation remain release prerequisites. This is not a verified App Review build.
 
 Delivery: prepared for review on a dedicated GitHub branch. Repository access was restored on 23 September 2026 by installing the authorized Codex Connector for the two selected repositories. No deployment or device validation has been performed.
 
@@ -46,7 +46,7 @@ Required in web repository (first four paths also prepared under `web-companion/
 
 - `public/sw.js`: bypass caching and offline SPA fallback for `/auth`, `/auth/*`, `/~oauth` and `/~oauth/*`.
 
-Supporting files: `web-companion/apply.mjs`, `tests/oauth-web.test.cjs`, this report. IAP, subscriptions, Firebase, unrelated UI and Codemagic publishing settings were not changed.
+Supporting iOS files: `web-companion/apply.mjs`, `tests/oauth-web.test.cjs`, `codemagic.yaml`, this report. IAP, subscriptions, Firebase and unrelated UI were not changed. The existing release/publishing workflow was preserved; a separate unsigned iOS validation workflow was added.
 
 ## Apply and deploy the web companion
 
@@ -58,7 +58,7 @@ From a checkout with access to the web repository:
 node /path/to/dream-language-ios/web-companion/apply.mjs /path/to/Dream-Language
 ```
 
-Review that only the five web paths above changed, run the repository's build/tests on an unrestricted development host, and sync to Lovable. Publish the auth changes, service worker and static relay before installing the new iOS build.
+The web PR also adds a validation-only `codemagic.yaml` and synchronizes `package-lock.json`: five missing package entries plus the root dependency declarations, with no existing version changes or removals. CI now installs with `npm ci`. Review the complete PR and sync to Lovable. Publish the auth changes, service worker and static relay before installing the new iOS build.
 
 Verify `https://dream-language.lovable.app/auth/native-callback.html` serves the standalone “Return to Dream Language” document, not the React 404 fallback, and `/auth/native-callback.js` serves the relay. Confirm hosting does not inject analytics or third-party scripts into the relay. Check that a prior service worker does not intercept the relay with an old SPA shell; exclude `/auth/native-callback.html` from any navigation fallback/cache rules if necessary. A clean installation alone does not clear Safari's website data.
 
@@ -70,11 +70,14 @@ Google/Apple/Lovable authentication pages are allowed within the system authenti
 
 XML parsing and assertions for the app-bound domain, registered callback scheme and Apple entitlement passed. `git diff --check` passed. On 23 September, full application and tooling TypeScript checks passed (`tsc --noEmit -p tsconfig.app.json` and `tsc --noEmit -p tsconfig.node.json`). The OAuth runtime tests use Node's TypeScript stripping separately. The initial test runner could not spawn a child process in the sandbox; the supported same-process runner completed successfully.
 
-Additional web verification (23 September 2026):
-- A targeted service-worker execution check passed for all four auth route variants: none is intercepted or cached.
-- `npm ci` fails because the existing lockfile omits Paddle, react-helmet-async and their dependencies. The lockfile was not modified by this OAuth repair.
-- Typechecks used dependencies installed locally with `npm install --package-lock=false --ignore-scripts --no-audit --no-fund`. This is not a reproducible locked install.
-- `npm run build` and `npm test` both stop while loading configuration because this environment rejects the esbuild child process (`spawn EPERM`). Neither is a successful build/test result; rerun outside this sandbox before merging/releasing.
+## CI results (23 September 2026)
+
+- iOS unsigned simulator build passed (`BUILD SUCCEEDED`) at commit ba63b0e4d81e1aa7d856ae6593ed06c7f0ebe34f: https://codemagic.io/app/6a84458519225f68d9a15ea2/build/6ab3bf8b469c1b6101b44f52 . The added `ios-oauth-validation` workflow in `codemagic.yaml` has no signing or TestFlight publishing.
+- Web clean locked install, TypeScript, Vitest (one existing example test), production build and standalone relay output checks passed at commit ebfd5156551026b7f9a139509a5132ce763bee1a: https://codemagic.io/app/6ab3c059fff1664587506508/build/6ab41814556d604d3c56c817 . `web-oauth-validation` has no deployment step.
+- The original npm lockfile was missing five package entries. The PR adds them and the missing root declarations (43 added lines, no removed lines); existing package versions and package.json are unchanged.
+- All 14 dedicated OAuth relay/bridge tests passed locally. A targeted service-worker execution check passed for four auth route variants.
+- Earlier Windows `spawn EPERM` failures are superseded by the successful remote CI runs. The production build emitted existing large-chunk and stale Browserslist-data warnings; these are outside the OAuth repair.
+- No merge, production publication, signing update or real-device login has been performed.
 
 ## Apple Developer / Xcode steps
 
@@ -94,7 +97,7 @@ xcodebuild -workspace "Dream Language.xcworkspace" -scheme "Dream Language" \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-Then archive Release with valid signing. Inspect the signed archive's entitlements, not only the source plist. Xcode/Swift SDK compilation, signing, archive and native runtime tests were unavailable on this Windows host.
+Then archive Release with valid signing. Inspect the signed archive's entitlements, not only the source plist. Unsigned simulator compilation was subsequently verified on Codemagic using Xcode 26.6 (arm64 and x86_64 simulator). Signing, archive and native login runtime tests remain pending.
 
 ## Clean-install acceptance test before App Review
 

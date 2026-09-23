@@ -37,14 +37,20 @@ In iOS:
 - `src/Dream Language/Entitlements/Entitlements.plist`: Sign in with Apple entitlement.
 - `src/Dream Language.xcodeproj/project.pbxproj`: compile bridge and enable capability.
 
-Required in web repository (prepared under `web-companion/`):
+Web pull request: https://github.com/lukaspomp-ui/Dream-Language/pull/2
+
+Required in web repository (first four paths also prepared under `web-companion/`):
 - `public/auth/native-callback.html` and `public/auth/native-callback.js` (new).
 - `src/lib/nativeAuth.ts`: prevent overlapping requests, validate result shape and clean up listeners.
 - `src/pages/Auth.tsx`: clear the 20-second web watchdog immediately upon entering the native branch. The native timeout covers the system sheet, where normal user sign-in can take more than 20 seconds.
 
+- `public/sw.js`: bypass caching and offline SPA fallback for `/auth`, `/auth/*`, `/~oauth` and `/~oauth/*`.
+
 Supporting files: `web-companion/apply.mjs`, `tests/oauth-web.test.cjs`, this report. IAP, subscriptions, Firebase, unrelated UI and Codemagic publishing settings were not changed.
 
 ## Apply and deploy the web companion
+
+Prefer reviewing and merging web PR #2, which includes all five web paths. The older companion helper applies only the first four paths and does not include the service-worker exclusion. If using the helper, apply the `public/sw.js` change from PR #2 as well.
 
 From a checkout with access to the web repository:
 
@@ -52,7 +58,7 @@ From a checkout with access to the web repository:
 node /path/to/dream-language-ios/web-companion/apply.mjs /path/to/Dream-Language
 ```
 
-Review that only the four web paths above changed, run the repository's typecheck/build/tests, and sync to Lovable. Publish the auth changes and static relay before installing the new iOS build. The full web repository was not available locally for its build/typecheck in this session.
+Review that only the five web paths above changed, run the repository's build/tests on an unrestricted development host, and sync to Lovable. Publish the auth changes, service worker and static relay before installing the new iOS build.
 
 Verify `https://dream-language.lovable.app/auth/native-callback.html` serves the standalone “Return to Dream Language” document, not the React 404 fallback, and `/auth/native-callback.js` serves the relay. Confirm hosting does not inject analytics or third-party scripts into the relay. Check that a prior service worker does not intercept the relay with an old SPA shell; exclude `/auth/native-callback.html` from any navigation fallback/cache rules if necessary. A clean installation alone does not clear Safari's website data.
 
@@ -62,7 +68,13 @@ Google/Apple/Lovable authentication pages are allowed within the system authenti
 
 `node --test --test-isolation=none tests/oauth-web.test.cjs`: 14 passed, 0 failed. Covers token encoding, query/fragment responses, missing/wrong/duplicate state, duplicate tokens, partial sessions, provider errors, origin/frame restrictions, fixed callback destination, concurrency, timeout, cancellation and listener cleanup. These tests execute the web relay and TypeScript bridge with a simulated browser; they do not execute UIKit or ASWebAuthenticationSession.
 
-XML parsing and assertions for the app-bound domain, registered callback scheme and Apple entitlement passed. `git diff --check` passed. Node stripped the bridge's TypeScript syntax to execute tests; this is not a full TypeScript typecheck. The initial test runner could not spawn a child process in the sandbox; the supported same-process runner completed successfully.
+XML parsing and assertions for the app-bound domain, registered callback scheme and Apple entitlement passed. `git diff --check` passed. On 23 September, full application and tooling TypeScript checks passed (`tsc --noEmit -p tsconfig.app.json` and `tsc --noEmit -p tsconfig.node.json`). The OAuth runtime tests use Node's TypeScript stripping separately. The initial test runner could not spawn a child process in the sandbox; the supported same-process runner completed successfully.
+
+Additional web verification (23 September 2026):
+- A targeted service-worker execution check passed for all four auth route variants: none is intercepted or cached.
+- `npm ci` fails because the existing lockfile omits Paddle, react-helmet-async and their dependencies. The lockfile was not modified by this OAuth repair.
+- Typechecks used dependencies installed locally with `npm install --package-lock=false --ignore-scripts --no-audit --no-fund`. This is not a reproducible locked install.
+- `npm run build` and `npm test` both stop while loading configuration because this environment rejects the esbuild child process (`spawn EPERM`). Neither is a successful build/test result; rerun outside this sandbox before merging/releasing.
 
 ## Apple Developer / Xcode steps
 

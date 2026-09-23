@@ -16,6 +16,14 @@ func createWebView(container: UIView, WKSMH: WKScriptMessageHandler, WKND: WKNav
     userContentController.add(WKSMH, name: "push-token")
     userContentController.add(WKSMH, name: "iap-purchase")
     userContentController.add(WKSMH, name: "iap-restore")
+    userContentController.add(WKSMH, name: "oauth-signin")
+    userContentController.addUserScript(WKUserScript(source: """
+        Object.defineProperty(window, '__dreamOAuthDocumentID', {
+            value: Array.from(crypto.getRandomValues(new Uint8Array(16)),
+                x => x.toString(16).padStart(2, '0')).join(''),
+            writable: false, configurable: false
+        });
+        """, injectionTime: .atDocumentStart, forMainFrameOnly: true))
 
     config.userContentController = userContentController
 
@@ -122,6 +130,23 @@ extension ViewController: WKUIDelegate, WKDownloadDelegate {
         }
 
         if let requestUrl = navigationAction.request.url{
+            // Provider pages belong to ASWebAuthenticationSession, which is not
+            // subject to WKAppBoundDomains. Never send OAuth to Safari/WKWebView.
+            if OAuthConfiguration.providerHosts.contains(requestUrl.host ?? "") ||
+                (OAuthConfiguration.isAppURL(requestUrl) && requestUrl.path.hasPrefix("/~oauth/")) {
+                decisionHandler(.cancel)
+                let alert = UIAlertController(title: "Sign-in update required",
+                    message: "Reload the app and try signing in again. If this continues, the latest sign-in update needs to be published.",
+                    preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                if presentedViewController == nil { present(alert, animated: true) }
+                return
+            }
+            if requestUrl.scheme == OAuthConfiguration.callbackScheme {
+                // Only the active ASWebAuthenticationSession may consume tokens.
+                decisionHandler(.cancel)
+                return
+            }
             // Schemes that should always be handed off to the system/other apps rather than
             // being processed as in-app navigation (e.g. phone calls, email, maps, FaceTime, etc.)
             let externalSchemes = ["tel", "telprompt", "mailto", "facetime", "facetime-audio", "fb", "fb-messenger", "sms", "itms-services", "itms-apps", "itms", "maps"]
@@ -135,7 +160,7 @@ extension ViewController: WKUIDelegate, WKDownloadDelegate {
 
             if let requestHost = requestUrl.host {
                 // NOTE: Match auth origin first, because host origin may be a subset of auth origin and may therefore always match
-                let matchingAuthOrigin = authOrigins.first(where: { requestHost.range(of: $0) != nil })
+                let matchingAuthOrigin = authOrigins.first(where: { requestHost.lowercased() == $0.lowercased() })
                 if (matchingAuthOrigin != nil) {
                     decisionHandler(.allow)
                     if (toolbarView.isHidden) {
@@ -145,7 +170,7 @@ extension ViewController: WKUIDelegate, WKDownloadDelegate {
                     return
                 }
 
-                let matchingHostOrigin = allowedOrigins.first(where: { requestHost.range(of: $0) != nil })
+                let matchingHostOrigin = allowedOrigins.first(where: { requestHost.lowercased() == $0.lowercased() && requestUrl.scheme == "https" })
                 if (matchingHostOrigin != nil) {
                     // Open in main webview
                     decisionHandler(.allow)

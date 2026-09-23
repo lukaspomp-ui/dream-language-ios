@@ -26,9 +26,11 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string></string>
+			<string>app.lovable.dream-language.oauth</string>
 			<key>CFBundleURLSchemes</key>
-			<array />
+			<array>
+				<string>app.lovable.dream-language</string>
+			</array>
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
@@ -94,7 +96,7 @@
 	<true/>
 	<key>WKAppBoundDomains</key>
 	<array>
-		<string>dream-language.lovable.app/dashboard</string>
+		<string>dream-language.lovable.app</string>
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>

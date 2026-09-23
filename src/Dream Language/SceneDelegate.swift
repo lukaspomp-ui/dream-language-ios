@@ -29,6 +29,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         
         // See if we were launched via scheme URL
         if let schemeUrl = connectionOptions.urlContexts.first?.url {
+            // Unsolicited/cold-launch OAuth callbacks are not login sessions.
+            // ASWebAuthenticationSession owns the active callback exclusively.
+            if schemeUrl.scheme == OAuthConfiguration.callbackScheme { return }
             // Convert scheme://url to a https://url
             var comps = URLComponents(url: schemeUrl, resolvingAgainstBaseURL: false)
             comps?.scheme = "https"
@@ -42,6 +45,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     // This function is called when our app is already running and the user clicks a custom scheme URL
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
         if let scheme = URLContexts.first?.url {
+            if scheme.scheme == OAuthConfiguration.callbackScheme { return }
             // Convert scheme://url to a https://url and navigate to it
             var comps = URLComponents(url: scheme, resolvingAgainstBaseURL: false)
             comps?.scheme = "https"

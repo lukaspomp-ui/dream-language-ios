@@ -4,6 +4,7 @@ import WebKit
 var webView: WKWebView! = nil
 
 class ViewController: UIViewController, WKNavigationDelegate, UIDocumentInteractionControllerDelegate {
+    let oauthBridge = OAuthBridge()
     enum LoadingMode {
         case defaultCachePolicy
         case forceCache
@@ -162,6 +163,10 @@ class ViewController: UIViewController, WKNavigationDelegate, UIDocumentInteract
             self.overrideUIStyle()
         }
     }
+
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        oauthBridge.cancelForNavigation()
+    }
     
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         htmlIsLoaded = false;
@@ -257,6 +262,10 @@ extension UIColor {
 
 extension ViewController: WKScriptMessageHandler {
   func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == "oauth-signin" {
+            oauthBridge.signIn(message: message, window: view.window)
+            return
+        }
         if message.name == "print" {
             printView(webView: DreamLanguage.webView)
         }

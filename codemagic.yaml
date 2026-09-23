@@ -53,3 +53,26 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
+
+
+  ios-oauth-validation:
+    name: Validate OAuth iOS compilation
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install CocoaPods dependencies
+        script: |
+          cd src
+          pod install
+      - name: Compile unsigned iOS simulator app
+        script: |
+          set -o pipefail
+          cd src
+          xcodebuild -workspace "Dream Language.xcworkspace" -scheme "Dream Language" \
+            -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tee /tmp/oauth-validation.log
+    artifacts:
+      - /tmp/oauth-validation.log

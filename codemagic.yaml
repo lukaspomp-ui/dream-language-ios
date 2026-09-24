@@ -36,6 +36,13 @@ workflows:
           /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.associated-domains" "$PLIST" || true
           echo "--- entitlements after strip ---"
           cat "$PLIST"
+      - name: Ensure Sign in with Apple on the existing App ID
+        script: |
+          set -euo pipefail
+          app-store-connect bundle-ids capabilities JWD9X3QRGH --json > /tmp/dream-capabilities.json
+          if ! grep -q '"SIGN_IN_WITH_APPLE"' /tmp/dream-capabilities.json; then
+            app-store-connect bundle-ids enable-capabilities JWD9X3QRGH --capability "Sign In with Apple"
+          fi
       - name: Initialize keychain
         script: keychain initialize
       - name: Fetch signing files (generate key + create if missing)
@@ -57,6 +64,18 @@ workflows:
           xcode-project build-ipa \
             --workspace "$XCODE_WORKSPACE" \
             --scheme "$XCODE_SCHEME"
+      - name: Verify Apple sign-in in the signed IPA
+        script: |
+          set -euo pipefail
+          IPA_PATH=$(find src/build/ios/ipa -name '*.ipa' -print -quit)
+          test -n "$IPA_PATH"
+          unzip -q "$IPA_PATH" -d /tmp/dream-verified-ipa
+          APP_PATH=$(find /tmp/dream-verified-ipa/Payload -maxdepth 1 -name '*.app' -print -quit)
+          codesign --display --entitlements :- "$APP_PATH" > /tmp/dream-signed-entitlements.plist
+          security cms -D -i "$APP_PATH/embedded.mobileprovision" > /tmp/dream-embedded-profile.plist
+          test "$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.applesignin:0' /tmp/dream-signed-entitlements.plist)" = "Default"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.applesignin:0' /tmp/dream-embedded-profile.plist)" = "Default"
+          echo "Sign in with Apple verified in both the signed app and embedded profile."
     artifacts:
       - src/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log

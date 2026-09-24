@@ -10,9 +10,20 @@ workflows:
         XCODE_WORKSPACE: "Dream Language.xcworkspace"
         XCODE_SCHEME: "Dream Language"
         BUNDLE_ID: "app.lovable.dream-language"
+        APP_STORE_APPLE_ID: "6802682642"
       xcode: latest
       cocoapods: default
     scripts:
+      - name: Set next TestFlight build number
+        script: |
+          set -euo pipefail
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID")
+          if ! [[ "$LATEST_BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "Cannot determine the latest TestFlight build number; refusing a duplicate upload."
+            exit 1
+          fi
+          cd src
+          agvtool new-version -all "$((LATEST_BUILD_NUMBER + 1))"
       - name: Install CocoaPods dependencies
         script: |
           cd src
@@ -52,7 +63,8 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        submit_to_testflight: true
+        # Upload for internal testing; external beta review needs completed test contact details.
+        submit_to_testflight: false
 
 
   ios-oauth-validation:
